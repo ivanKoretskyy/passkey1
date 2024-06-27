@@ -1,0 +1,22 @@
+{
+  "name": "passkey1",
+  "version": "1.0.0",
+  "description": "passkey tutorial js/html, express, node , mongo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ivanKoretskyy/passkey1.git"
+  },
+  "keywords": [
+    "passkey"
+  ],
+  "author": "ivan koretskyy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ivanKoretskyy/passkey1/issues"
+  },
+  "homepage": "https://github.com/ivanKoretskyy/passkey1#readme"
+}

@@ -18,5 +18,9 @@
   "bugs": {
     "url": "https://github.com/ivanKoretskyy/passkey1/issues"
   },
-  "homepage": "https://github.com/ivanKoretskyy/passkey1#readme"
+  "homepage": "https://github.com/ivanKoretskyy/passkey1#readme",
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0"
+  }
 }

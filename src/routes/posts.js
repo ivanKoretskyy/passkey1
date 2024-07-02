@@ -10,6 +10,7 @@ router.get("/", async (req, res) => {
   let results = await collection.find({})
     .limit(50)
     .toArray();
+    console.info('router.get results', results);
 
   res.send(results).status(200);
 });
@@ -30,6 +31,7 @@ router.get("/:id", async (req, res) => {
   let collection = await db.collection("posts");
   let query = {_id: ObjectId(req.params.id)};
   let result = await collection.findOne(query);
+  console.info(results)
 
   if (!result) res.send("Not found").status(404);
   else res.send(result).status(200);

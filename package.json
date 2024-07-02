@@ -22,7 +22,11 @@
   },
   "homepage": "https://github.com/ivanKoretskyy/passkey1#readme",
   "dependencies": {
+    "@simplewebauthn/server": "^8.3.5",
+    "cors": "^2.8.5",
     "express": "^4.19.2",
-    "mongodb": "^6.8.0"
+    "express-session": "^1.18.0",
+    "mongodb": "^6.8.0",
+    "uuid": "^10.0.0"
   }
 }

@@ -102,7 +102,7 @@ async function login() {
 
         // This triggers the browser to display the passkey / WebAuthn modal (e.g. Face ID, Touch ID, Windows Hello).
         // A new assertionResponse is created. This also means that the challenge has been signed.
-        const assertionResponse = await SimpleWebAuthnBrowser.startAuthentication(options);
+        const assertionResponse = await startAuthentication(options);
         console.info('options',options)
         console.info('assertionResponse', assertionResponse)
 
@@ -317,3 +317,239 @@ async function startRegistration(
       ),
     };
   }
+
+function browserSupportsWebAuthnAutofill() {
+    if (!browserSupportsWebAuthn()) {
+      return new Promise((resolve) => resolve(false));
+    }
+  
+    const globalPublicKeyCredential = window
+      .PublicKeyCredential;
+  
+    if (globalPublicKeyCredential.isConditionalMediationAvailable === undefined) {
+      return new Promise((resolve) => resolve(false));
+    }
+  
+    return globalPublicKeyCredential.isConditionalMediationAvailable();
+  }
+  
+  function isValidDomain(hostname) {
+    return (
+      // Consider localhost valid as well since it's okay wrt Secure Contexts
+      hostname === 'localhost' ||
+      /^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$/i.test(hostname)
+    );
+  }
+
+  class WebAuthnError extends Error {
+    code;
+  
+    constructor({
+      message,
+      code,
+      cause,
+      name,
+    }) {
+      super(message, { cause });
+      this.name = name ?? cause.name;
+      this.code = code;
+    }
+  }
+
+  function identifyAuthenticationError({
+    error,
+    options,
+  }){
+    const { publicKey } = options;
+  
+    if (!publicKey) {
+      throw Error('options was missing required publicKey property');
+    }
+  
+    if (error.name === 'AbortError') {
+      if (options.signal instanceof AbortSignal) {
+        // https://www.w3.org/TR/webauthn-2/#sctn-createCredential (Step 16)
+        return new WebAuthnError({
+          message: 'Authentication ceremony was sent an abort signal',
+          code: 'ERROR_CEREMONY_ABORTED',
+          cause: error,
+        });
+      }
+    } else if (error.name === 'NotAllowedError') {
+      /**
+       * Pass the error directly through. Platforms are overloading this error beyond what the spec
+       * defines and we don't want to overwrite potentially useful error messages.
+       */
+      return new WebAuthnError({
+        message: error.message,
+        code: 'ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY',
+        cause: error,
+      });
+    } else if (error.name === 'SecurityError') {
+      const effectiveDomain = window.location.hostname;
+      if (!isValidDomain(effectiveDomain)) {
+        // https://www.w3.org/TR/webauthn-2/#sctn-discover-from-external-source (Step 5)
+        return new WebAuthnError({
+          message: `${window.location.hostname} is an invalid domain`,
+          code: 'ERROR_INVALID_DOMAIN',
+          cause: error,
+        });
+      } else if (publicKey.rpId !== effectiveDomain) {
+        // https://www.w3.org/TR/webauthn-2/#sctn-discover-from-external-source (Step 6)
+        return new WebAuthnError({
+          message: `The RP ID "${publicKey.rpId}" is invalid for this domain`,
+          code: 'ERROR_INVALID_RP_ID',
+          cause: error,
+        });
+      }
+    } else if (error.name === 'UnknownError') {
+      // https://www.w3.org/TR/webauthn-2/#sctn-op-get-assertion (Step 1)
+      // https://www.w3.org/TR/webauthn-2/#sctn-op-get-assertion (Step 12)
+      return new WebAuthnError({
+        message:
+          'The authenticator was unable to process the specified options, or could not create a new assertion signature',
+        code: 'ERROR_AUTHENTICATOR_GENERAL_ERROR',
+        cause: error,
+      });
+    }
+  
+    return error;
+  }
+  
+
+  class BaseWebAuthnAbortService {
+    controller;
+  
+
+    createNewAbortSignal() {
+      // Abort any existing calls to navigator.credentials.create() or navigator.credentials.get()
+      if (this.controller) {
+        const abortError = new Error(
+          'Cancelling existing WebAuthn API call for new one',
+        );
+        abortError.name = 'AbortError';
+        this.controller.abort(abortError);
+      }
+  
+      const newController = new AbortController();
+  
+      this.controller = newController;
+      return newController.signal;
+    }
+  
+    /**
+     * Manually cancel any active WebAuthn registration or authentication attempt.
+     */
+    cancelCeremony() {
+      if (this.controller) {
+        const abortError = new Error(
+          'Manually cancelling existing WebAuthn API call',
+        );
+        abortError.name = 'AbortError';
+        this.controller.abort(abortError);
+  
+        this.controller = undefined;
+      }
+    }
+  }
+
+  const WebAuthnAbortService = new BaseWebAuthnAbortService();
+
+
+  async function startAuthentication(
+    optionsJSON,
+    useBrowserAutofill = false,
+  ) {
+    if (!browserSupportsWebAuthn()) {
+      throw new Error('WebAuthn is not supported in this browser');
+    }
+  
+    // We need to avoid passing empty array to avoid blocking retrieval
+    // of public key
+    let allowCredentials;
+    if (optionsJSON.allowCredentials?.length !== 0) {
+      allowCredentials = optionsJSON.allowCredentials?.map(
+        toPublicKeyCredentialDescriptor,
+      );
+    }
+  
+    // We need to convert some values to Uint8Arrays before passing the credentials to the navigator
+    const publicKey = {
+      ...optionsJSON,
+      challenge: base64URLStringToBuffer(optionsJSON.challenge),
+      allowCredentials,
+    };
+  
+    // Prepare options for `.get()`
+    const options = {};
+  
+    /**
+     * Set up the page to prompt the user to select a credential for authentication via the browser's
+     * input autofill mechanism.
+     */
+    if (useBrowserAutofill) {
+      if (!(await browserSupportsWebAuthnAutofill())) {
+        throw Error('Browser does not support WebAuthn autofill');
+      }
+  
+      // Check for an <input> with "webauthn" in its `autocomplete` attribute
+      const eligibleInputs = document.querySelectorAll(
+        "input[autocomplete$='webauthn']",
+      );
+  
+      // WebAuthn autofill requires at least one valid input
+      if (eligibleInputs.length < 1) {
+        throw Error(
+          'No <input> with "webauthn" as the only or last value in its `autocomplete` attribute was detected',
+        );
+      }
+  
+      // `CredentialMediationRequirement` doesn't know about "conditional" yet as of
+      // typescript@4.6.3
+      options.mediation = 'conditional';
+      // Conditional UI requires an empty allow list
+      publicKey.allowCredentials = [];
+    }
+  
+    // Finalize options
+    options.publicKey = publicKey;
+    // Set up the ability to cancel this request if the user attempts another
+    options.signal = WebAuthnAbortService.createNewAbortSignal();
+  
+    // Wait for the user to complete assertion
+    let credential;
+    try {
+      credential = (await navigator.credentials.get(options));
+    } catch (err) {
+      throw identifyAuthenticationError({ error: err, options });
+    }
+  
+    if (!credential) {
+      throw new Error('Authentication was not completed');
+    }
+  
+    const { id, rawId, response, type } = credential;
+  
+    let userHandle = undefined;
+    if (response.userHandle) {
+      userHandle = bufferToBase64URLString(response.userHandle);
+    }
+  
+    // Convert values to base64 to make it easier to send back to the server
+    return {
+      id,
+      rawId: bufferToBase64URLString(rawId),
+      response: {
+        authenticatorData: bufferToBase64URLString(response.authenticatorData),
+        clientDataJSON: bufferToBase64URLString(response.clientDataJSON),
+        signature: bufferToBase64URLString(response.signature),
+        userHandle,
+      },
+      type,
+      clientExtensionResults: credential.getClientExtensionResults(),
+      authenticatorAttachment: toAuthenticatorAttachment(
+        credential.authenticatorAttachment,
+      ),
+    };
+  }
+  

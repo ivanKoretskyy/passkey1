@@ -1,15 +1,10 @@
-import { MongoClient } from "mongodb";
-
-const connectionString = process.env.ATLAS_URI || "mongodb+srv://ivankoretskyy3:testpassword20240627@cluster0.vzvonrh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-const client = new MongoClient(connectionString);
+import db from "../db/connect.js";
 
 export const credentialService = {
     async saveNewCredential(userId, credentialId, publicKey, counter, transports) {
         console.info("--------------saveNewCredential----------------");
         try {
-            let conn = await client.connect();
-            let collection = await conn.db("test1").collection("credentials");
+            let collection = await db.collection("credentials");
             let newDocument = {userId, credentialId, publicKey, counter, transports };
             let result = await collection.insertOne(newDocument);
             console.info('-----finish mongo -------saveNewCredential credentials:----', result);
@@ -24,8 +19,7 @@ export const credentialService = {
     async getCredentialByCredentialId(credentialId) {
         console.info('----------getCredentialByCredentialId-----------------')
         try {
-            let conn = await client.connect();
-            let collection = await conn.db("test1").collection("credentials");
+            let collection = await db.collection("credentials");
             let query = {credentialId};
             let credential = await collection.findOne(query);
             console.info('----minsish mongo ----getcredentialById credential:--------------', credential);
@@ -51,8 +45,7 @@ export const credentialService = {
     async updateCredentialCounter(credentialId, newCounter) {
         console.info('----------------updateCredentialCounter-----------------------')
         try {
-            let conn = await client.connect();
-            let collection = await conn.db("test1").collection("credentials");
+            let collection = await db.collection("credentials");
             let query = {credentialId};
             let credential = await collection.updateOne(query,{$set:{"counter":newCounter}});
             console.info(' finsih mongo updating counter in credential', credential);

@@ -18,7 +18,7 @@ https://blog.logrocket.com/mern-stack-tutorial/
 https://github.com/mongodb-developer/mongodb-express-rest-api-example/blob/stub/server/db/conn.js
 
 
-1.create cluster on mongodb https://cloud.mongodb.com/v2 ivankoretskyy2 CNgjInFHqhNk18h6
+1.create cluster on mongodb https://cloud.mongodb.com/v2
 2. install dependencies for mongo, express
 3.create express app
 3. set up environment variables

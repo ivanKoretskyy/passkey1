@@ -33,9 +33,10 @@ export const handleRegisterStart = async (req, res, next) => {
             userID: user.id,
             userName: user.username,
             timeout: 60000,
-            attestationType: 'direct',
+            attestationType: 'direct', // none | direct
             excludeCredentials: [],
             authenticatorSelection: {
+                //authenticatorAttachment: 'platform', // 'platform', 'cross-platform'
                 residentKey: 'preferred',
             },
             // Support for the two most common algorithms: ES256, and RS256

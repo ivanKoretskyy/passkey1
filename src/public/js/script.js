@@ -18,7 +18,6 @@ async function register() {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({username: username})
         });
-        console.log(response)
 
         // Check if the registration options are ok.
         if (!response.ok) {
@@ -27,37 +26,37 @@ async function register() {
 
         // Convert the registration options to JSON.
         const options = await response.json();
-        console.log(options)
+        // console.log('options for create passkey from backend',options)
 
         // This triggers the browser to display the passkey / WebAuthn modal (e.g. Face ID, Touch ID, Windows Hello).
         // A new attestation is created. This also means a new public-private-key pair is created.
         const attestationResponse = await startRegistration(options);
 
 
-        const publicKeyCredentialCreationOptions = {
-            challenge: Uint8Array.from(
-                options.challenge, c => c.charCodeAt(0)),
-            rp: {
-                name: options.rp.name || "Passkeys Tutorial",
-                id:  options.rp.id || window.location.hostname
-            },
-            user: {
-                id: Uint8Array.from(
-                    (options.user.id), c => c.charCodeAt(0)),
-                name: options.user.name || 'ivan1',
-                displayName: options.user.displayName || 'ivan1',
-            },
-            pubKeyCredParams: options.pubKeyCredParams || [{alg: -7, type: "public-key"}],
-            authenticatorSelection: options.authenticatorSelection || {
-                authenticatorAttachment: "cross-platform",
-            },
-            timeout: options.timeout || 60000,
-            attestation: options.attestation || "direct",
-            excludeCredentials: options.excludeCredentials,
-            extensions: options.extensions
-        };
-        console.info('--------------');
-        console.info(publicKeyCredentialCreationOptions);
+        // const publicKeyCredentialCreationOptions = {
+        //     challenge: Uint8Array.from(
+        //         options.challenge, c => c.charCodeAt(0)),
+        //     rp: {
+        //         name: options.rp.name || "Passkeys Tutorial",
+        //         id:  options.rp.id || window.location.hostname
+        //     },
+        //     user: {
+        //         id: Uint8Array.from(
+        //             (options.user.id), c => c.charCodeAt(0)),
+        //         name: options.user.name || 'ivan1',
+        //         displayName: options.user.displayName || 'ivan1',
+        //     },
+        //     pubKeyCredParams: options.pubKeyCredParams || [{alg: -7, type: "public-key"}],
+        //     authenticatorSelection: options.authenticatorSelection || {
+        //         authenticatorAttachment: "cross-platform",
+        //     },
+        //     timeout: options.timeout || 60000,
+        //     attestation: options.attestation || "direct",
+        //     excludeCredentials: options.excludeCredentials,
+        //     extensions: options.extensions
+        // };
+        // console.info('--------------');
+        // console.info(publicKeyCredentialCreationOptions);
         // const credential = await navigator.credentials.create({
         //     publicKey: publicKeyCredentialCreationOptions
         // });
@@ -77,7 +76,7 @@ async function register() {
         }
     } catch
         (error) {
-            console.error(error)
+            console.error('error', error)
         showMessage('Error: ' + error.message, true);
     }
 }
@@ -98,13 +97,13 @@ async function login() {
         }
         // Convert the login options to JSON.
         const options = await response.json();
-        console.log(options)
+        console.log('options from backend for start login: ',options)
 
         // This triggers the browser to display the passkey / WebAuthn modal (e.g. Face ID, Touch ID, Windows Hello).
         // A new assertionResponse is created. This also means that the challenge has been signed.
         const assertionResponse = await startAuthentication(options);
-        console.info('options',options)
-        console.info('assertionResponse', assertionResponse)
+
+        console.info('result of navigator credentials get(): ', assertionResponse)
 
         // Send assertionResponse back to server for verification.
         const verificationResponse = await fetch('/api/passkey/loginFinish', {
@@ -138,7 +137,7 @@ function browserSupportsWebAuthn() {
 
 
 function base64URLStringToBuffer(base64URLString) {
-    console.info('base64URLString', base64URLString)
+    // console.info('base64URLString', base64URLString)
     // Convert from Base64URL to Base64
     const base64 = base64URLString.replace(/-/g, '+').replace(/_/g, '/');
     /**
@@ -242,14 +241,18 @@ async function startRegistration(
     // Finalize options
     const options = { publicKey };
     // Set up the ability to cancel this request if the user attempts another
-    console.info('simple webauth n option:', options);
+    // console.info('options from backend for create function:', options);
 
     // Wait for the user to complete attestation
     let credential;
     try {
+      console.log('options for create passkey from backend',options)
+      debugger;
       credential = (await navigator.credentials.create(options));
+      console.info('browser created public key', credential)
+      debugger;
     } catch (err) {
-        console.error(err);
+        console.error('error: ',err);
       throw(err)
     }
   

@@ -16,14 +16,16 @@ export const handleLoginStart = async (req, res, next) => {
         }
         console.info('user', user);
 
-        req.session.loggedInUserId = user.id;
+        req.session.loggedInUserId = user?.id;
 
         // allowCredentials is purposely for this demo left empty. This causes all existing local credentials
         // to be displayed for the service instead only the ones the username has registered.
+
         const options = await generateAuthenticationOptions({
             timeout: 60000,
             allowCredentials: [],
-            userVerification: 'required',
+            // allowCredentials: [],
+            userVerification: 'required', // preferred | required
             rpID,
         });
         console.info('options', options)
